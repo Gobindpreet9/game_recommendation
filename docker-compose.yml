@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # OpenTelemetry collector service
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    networks:
+      - internal
+
+  # Zipkin tracing service
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - internal
+    depends_on:
+      - otel-collector
+
+  # Chroma database server
+  server:
+    image: chromadb/chroma
+    volumes:
+      - chroma_data:/data
+    ports:
+      - "8000:8000"
+    networks:
+      - internal
+    environment:
+      - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-collector:4317/
+      - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chroma
+    depends_on:
+      - otel-collector
+
+  # Jupyter notebook service
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jupyter/notebooks
+      - ./data:/home/jupyter/data
+      - ./work:/home/jupyter/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    restart: unless-stopped
+    networks:
+      - internal
+    depends_on:
+      - server
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  chroma_data:
+    driver: local
