@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir \
     sentence-transformers \
     torch \
     transformers \
-    langchain
+    langchain \
+    kagglehub
 
 # Make port 8888 available for Jupyter
 EXPOSE 8888
